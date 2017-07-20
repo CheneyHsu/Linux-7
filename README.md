@@ -1,3 +1,5 @@
-# My Awesome Book
+# My Linux-7 Book
 
-This file file serves as your book's preface, a great place to describe your book's content and ideas.
+CentOS 7 & RHEL 7 教程记录，主要是面向运维和调优以及日常故障处理。
+
+时间记录：
