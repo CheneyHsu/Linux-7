@@ -71,3 +71,7 @@ NFS是通过什么来控制那些客户端可以访问，那些不可以访问�
 |no_root_squash|这个选项允许 root 用户访问挂载上来的 NFS 卷。|
 |all_squash|这个选项对于公共访问的 NFS 卷来说非常有用，它会限制所有的 UID 和 GID，只使用匿名用户。缺省设置是 no_all_squash。|
 |anonuid 和 anongid|这两个选项将匿名 UID 和 GID 修改成特定用户和组帐号。|
+
+* 防火墙设置
+* 启动和停止NFS服务
+
