@@ -73,5 +73,267 @@ NFS是通过什么来控制那些客户端可以访问，那些不可以访问�
 |anonuid 和 anongid|这两个选项将匿名 UID 和 GID 修改成特定用户和组帐号。|
 
 * 防火墙设置
+
 * 启动和停止NFS服务
+
+* NFS常用指令
+        
+        showmount是用来查看nfs服务的情况
+        用法：showmount [ -adehv ] [ --all ] [ --directories ] [ --exports ] [ --help ] [ --version ] [ host ]
+        可以使用短选型，也可以使用长选项。
+        -a ：这个参数是一般在NFS SERVER上使用，是用来显示已经mount上本机nfs目录的cline机器。   
+        -e ：显示指定的NFS SERVER上export出来的目录。
+*
+        exportfs:一般用在当NFS服务启动后，使用此命令来控制共享目录的导出
+        用法：exportfs [-aruv] 
+        -a ：全部mount或者unmount /etc/exports中的内容 
+        -r ：重新mount /etc/exports中分享出来的目录 
+        -u ：umount目录 
+        -v ：在export的时候，将详细的信息输出到屏幕上。
+
+* 范例： 
+
+        # exportfs -au 卸载所有共享目录 
+        # exportfs -rv 重新共享所有目录并输出详细信息
+
+* NFS挂载使用
+
+        先使用 showmont -e SER_NAME 来发现服务端的共享的目录
+        然后使用mount挂载使用，格式：
+        mount -t nfs SER_NAME:/data /parth/to/someponit [-o 选项]
+        mount -t nfs 192.168.1.99:/mydat /mnt -o rsize=4096
+        rsize 的值是从服务器读取的字节数。wsize 是写入到服务器的字节数。默认都是1024， 如果使用比较高的值，如8192,可以提高传输速度。
+
+
+## Samba介绍
+
+* 生产环境中并不是只有linux/unix,也不是由microsoft windows 独霸天下。而往往是很多系统参杂的使用，既有Linux/Uinx，也有Windows。而高效的NFS并不能满足Windows的访问，所以，开发了 linux给windows用户提供文件共享的工具Samba，算是Linux上的开源精神的体现么？！ 
+* Samba服务类似于windows上的共享功能，可以实现在Linux上共享文件，windows上访问，当然在Linux上也可以访问到。
+* 是一种在局域网上共享文件和打印机的一种通信协议，它为局域网内的不同计算机之间提供文件及打印机等资源的共享服务。 
+* smb: Service Message Block
+* CIFS: Common Internet File System通用网络文件系统，是windows主机之间共享的协议，samba实现了这个协议，所以可以实现wondows与linux之间的文件共享服务。
+
+### Samba服务器配置
+* 安装samba服务器
+        
+        #yum -y install samba
+* 服务脚本：
+      
+      /etc/rc.d/init.d/nmb # 实现 NetBIOS协议
+      /etc/rc.d/init.d/smb  # 实现cifs协议
+* 主配置文件：
+  
+       /etc/samba/smb.conf
+* samba用户：
+        
+      账号：都是系统用户, /etc/passwd
+      密码：samba服务自有密码文件
+      将系统用户添加为samba的命令：smbpasswd
+
+* smbpasswd:
+  
+      -a Sys_User: 添加系统用户为samba用户
+      -d ：禁用用户
+      -e: 启用用户
+      -x: 删除用户
+* 配置文件：
+        
+      /etc/samba/smb.conf   配置文件包括全局设定，特定共享的设定，私有家目录，打印机共享，自定义共享
+#### 配置范例
+* 全局配置： 	
+```
+workgroup = MYGROUP  # 工作组
+hosts allow = 127. 192.168.12. 192.168.13. # 访问控制，IP控制
+interfaces = lo eth0 192.168.12.2/24 192.168.13.2/24 # 接口+ip控制
+
+自定义共享：
+[shared_name] #共享名称
+path = /path/to/share_directory #共享路径
+comment = Comment String # 注释信息
+guest ok = {yes|no} | public = {yes|no} # 是否启用来宾账号
+writable = {yes|no} |  read only = {yes|no} # 共享目录是否可写
+write list = +GROUP_NAME  #
+```
+
+* 测试配置文件是否有语法错误，以及显示最终生效的配置：  	
+        
+        testparm
+* 启动samba服务（补全）
+* 防火墙配置（补全）
+
+* 范例
+```
+要求共享一个目录，任何人都可以访问，即不用输入密码即可访问，要求只读 
+[global]部分 MYGROUP 改为WORKGROUP 
+security = user  改为 security = share 
+末尾处加入：
+[share] 
+comment = share all 
+path = /tmp/samba 
+browseable = yes 
+public = yes 
+writable = no 
+
+mkdir /tmp/samba 
+
+chmod 777 /tmp/samba 
+touch /tmp/samba/sharefiles 
+echo "111111" > /tmp/samba/sharefiles 
+启动：/etc/init.d/smb start  
+检查配置的smb.conf是否正确  testparm  
+测试：win机器浏览器输入 file://192.168.0.22/share 
+或者运行栏输入： \\192.168.0.22
+```
+* 范例2
+```
+共享一个目录，使用用户名和密码登录后才可以访问，要求可以读写 
+[global] 部分内容如下:  
+
+[global] 
+workgroup = WORKGROUP 
+server string = Samba Server Version %v 
+security = user 
+passdb backend = tdbsam 
+load printers = yes 
+cups options = raw 
+
+还有如下：
+[myshare] 
+comment = share for users 
+path = /samba 
+browseable = yes 
+writable = yes 
+public = no 
+
+创建目录：mkdir /samba
+修改权限：chmod 777 /samba
+创建系统账号：
+useradd user1
+useradd user2
+添加user1/user2为samba账户：
+pdbedit -a user1
+pdbedit -a user2 
+列出samba所有账号: pdbedit –L
+重启服务 service smb restart
+测试：浏览器输入file://192.168.0.22/myshare
+```
+* Windows中samba使用
+```
+在windows中访问Linux的samba服务器，可以直接使用网上邻居或者是使用url来访问，例如192.168.56.101是共享服务器，客户端使用“\\192.168.56.101”来访问
+```
+* Linux中samba使用
+```
+交互式数据访问：
+smbclient -L HOST -U USERNAME
+获取到共享信息之后，
+smbclint //SERVER/shared_name -U USERNAME
+基于挂载的方式访问：
+mount -t cifs //SERVER/shared_name  /mount_point -o username=USERNAME,password=PASSWORD
+```
+
+## FTP介绍
+* FTP 是File Transfer Protocol（文件传输协议）的英文简称，而中文简称为 “文传协议” 用于Internet上的控制文件的双向传输。
+* FTP的主要作用，就是让用户连接上一个远程计算机（这些计算机上运行着FTP服务器程序）查看远程计算机有哪些文件，然后把文件从远程计算机上拷到本地计算机，或把本地计算机的文件送到远程计算机去。
+* 是一种C/S架构，基于套接字通信，用来在两台机器之间相互传输文件。FTP协议用到2种tcp连接：一是命令连接，用于客户端和服务端之间传递命令，监听在tcp/21端口；另一个是数据传输连接，用来传输数据，监听的端口是随机的。
+* 在CentOS或者RedHat Linux上有自带的ftp软件叫做vsftpd  
+
+##### FTP主动
+![jpg](./images/FTP&SMB&NFS/FTPzd.jpg)
+主动模式存在的问题是，在客户端一般都会有防火墙的设置，当服务端与客户端数据进行数据通信时，客户端的防火墙会将服务端的端口挡在外面。此时，通信就会受阻。因此，被动模式就产生了。
+##### FTP被动
+![jpg](./images/FTP&SMB&NFS/FTPbd.jpg)
+被动模式也会存在防火墙的问题，客户端与服务端传输数据时，在服务端也会有防火墙，但在服务端的防火墙有连接追踪的功能，解决了防火墙的问题。因此，一般使用被动模式比较多。
+
+* FTP的用户认证
+
+      FTP支持系统用户，匿名用户，和虚拟用户三种用户认证。
+      匿名用户：登陆用户名是anonymous，没有密码
+      系统用户：是FTP服务器端的本地用户和对应的密码，默认访问的是用户家目录
+      虚拟用户：仅用于访问服务器中特定的资源，常见的虚拟用户认证的方式有使用文件认证或使用数据库进行认证。最终也会将这些虚拟用户同一映射为一个系统用户，访问的默认目录就是这个系统用户的家目录。
+
+* FTP配置
+```
+在CentOS上默认提供的是vsftpd（Very Secure FTP），以安全著称。
+用户认证配置文件：/etc/pam.d/vsftpd      
+服务脚本：/etc/rc.d/init.d/vsftpd      
+配置文件目录：/etc/vsftpd       
+主配置文件：vsftpd.conf       
+匿名用户（映射为ftp用户）共享资源位置：/var/ftp       
+系统用户通过ftp访问的资源的位置：用户自己的家目录       
+虚拟用户通过ftp访问的资源的位置：给虚拟用户指定的映射成为的系统用户的家目录
+```
+* 常见的vsftpd的参数设置
+```
+匿名用户的配置：
+anonymous_enable=YES    #允许匿名用户登录
+anon_upload_enable=YES     #允许匿名用户上传文件
+anon_mkdir_write_enable=YES    #允许匿名用户创建目录
+anon_ohter_write_enable=YES    #允许其他的写权限（删除目录，文件）
+```
+```
+系统用户的配置：
+local_enable=YES    #允许本地用户的登录
+write_enable=YES    # 本地用户可写
+local_umask=022    # 本地用户的umask
+```
+```
+禁锢所有的ftp本地用户于其家目录中：
+chroot_local_user=YES      
+#允许本地用户只能访问自己的家目录，不允许访问其他目录，适用于所有的用户
+```
+![jpg](./images/FTP&SMB&NFS/chroot.png)
+```
+禁锢文件中指定的ftp本地用户于其家目录中：
+chroot_list_enable=YES
+chroot_list_file=/etc/vsftpd/chroot_list
+```
+```
+目录消息：
+dirmessage_enable=YES 
+# 开启目录提示信息在对应的目录下创建一个.message的文件，里面的内容当我们在访问时此目录时，会看到提示的信息。
+```
+![jpg](./images/FTP&SMB&NFS/meaages.png)
+```
+日志：
+xferlog_enable=YES      # 打开传输日志
+xferlog_std_format=YES   # 是否使用标准格式
+xferlog_file=/var/log/xferlog  #日志文件路径
+```
+```
+改变上传文件的属主：
+chown_uploads=YES
+chown_username=whoever #上传文件后立即改变文件的属主名
+```
+```
+vsftpd使用pam完成用户认证，其用到的pam配置文件：
+pam_service_name=vsftpd   #用户认证文件，在/etc/pam.d/目录下
+```
+```
+是否启用控制用户登录的列表文件
+userlist_enable=YES
+userlist_deny=YES|NO   # 为yes的意思是，userlist_file是黑名单文件；是no的意思是userlist_file是白名单文件
+userlist_file=/etc/vsftpd/user_list，默认文件为/etc/vsftpd/user_list
+```
+```
+连接限制：
+max_clients: 最大并发连接数；
+max_per_ip: 每个IP可同时发起的并发请求数；
+```
+```
+传输速率：
+anon_max_rate: 匿名用户的最大传输速率, 单位是“字节/秒”;
+local_max_rate: 本地用户的最大传输速率, 单位是“字节/秒”;
+```
+* 启动vsftpd服务
+* 防火墙配置
+
+
+
+##### 常见的实现FTP协议的工具
+* 服务端：
+Linux端：wu-ftpd，pureftp，vsftpd（Centos 6上默认提供的）
+windows端：ServU，FileZilla-Server
+* 客户端工具：
+Linux操作系统：ftp，lftp，lftpget，wget，cul，gftp等
+windows操作系统：FileZilla
 
