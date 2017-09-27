@@ -470,7 +470,7 @@
 ![png](./images/hostname/2.png)
 
 ## 总结
-* 配置文件中，GATEWAY可以有多个，第一个是GATEWAY0，其次GATEWAY1，….尾号最大有效
+* 配置文件中，GATEWAY可以有多个，第一个是GATEWAY0，其次GATEWAY1，….尾号最大有效。
 * 所有网络配置的文件在/etc/sysconfig/network-scripts 目录里，一定要熟记配置文件写法。 
 * 网络配置技能是基础技能还希望大家认真看看，CentOS7 采用了全新配置模式，但是你依然可以使用配置文件的编辑来完成任务。
 
