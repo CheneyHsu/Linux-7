@@ -478,18 +478,19 @@ DeviceReportedTime: 2015-10-28 15:22:41
 >这就是最后的结果，我们可以看到所有机器发来的日志
 
 ## 非syslog日志转发
-有时候我们自己开发的应用程序，这样的日志不会通过rsyslog转发到服务器。但是现在我们想通过rsyslog统一的手机这些日志到服务器去分析，所以需要一些手段和自定义配置，主要是靠加载imfile模块来实现。
+有时候我们自己开发的应用程序，这样的日志不会通过rsyslog转发到服务器。但是现在我们想通过rsyslog统一的收集这些日志到服务器去分析，所以需要一些手段和自定义配置，主要是靠加载imfile模块来实现。
 ```
-[root@localhost rsyslog.d]# pwd
-/etc/rsyslog.d
-[root@localhost rsyslog.d]# cat testlog.conf 
-module(load="imfile"PollingInterval="5")
-input(type="imfile"
-File="/var/log/logtest"
-Tag="testlogggg"
-Severity="info"
-StateFile="ssologs.log_state"
-Facility="local5")
+$ModLoad imfile # needs to be done just once 引入模板
+# logstash - test - remote send file.
+$InputFileName /tmp/test.log #指定监控日志文件
+$InputFilePollInterval 10 #指定每10秒轮询一次文件
+$InputFileTag logstash-test #指定文件的tag
+$InputFileStateFile /var/lib/rsyslog/logstash-test.log #指定状态文件存放位置，如不指定会报错。
+$InputFileSeverity info #设置监听日志级别
+$InputFileFacility local0 #指定设备
+$InputRunFileMonitor #启动此监控，没有此项，上述配置不生效。
+
+*.*                    @@目标ip:端口  #远程发送源tcp协议远程发送
 ```
 ```
 #systemctl restart rsyslog.service
@@ -499,13 +500,25 @@ Facility="local5")
 #!/bin/bash 
 for i in {1..100000};
 do
-echo $i >> /var/log/logtest
+echo $i >> /tmp/test.log
 sleep 2
 done
 #bash /root/test.sh
 ```
 ![png](./images/syslog/syslog-13.png)
 
+利用以上模板对客户端内应用日志进行监控，并将日志文件每十秒扫描一次，发送至远程服务器，可以在远程服务器配置过滤条件，将日志文件进行分级别保存。
+
+在服务器端的/etc/rsyslog.conf里面配置如下信息：
+```
+#指定使用设备名称和日志级别对系统日志进行过滤，日志文件名是年月日时.log
+$template RemoteSyslogfacility-textSys,"/data/log/%syslogfacility-text%/%syslogseverity-text%/%$year%_%$month%_%$day%_%$hour%.log"
+:syslogfacility-text, !isequal, "local0" ?RemoteSyslogfacility-textSys
+
+#指定使用设备名称、日志tag信息和日志级别对系统日志进行过滤，日志文件名是年月日时.log
+$template RemoteSyslogfacility-textApp,"/data/log/%syslogfacility-text%/%syslogtag%/%syslogseverity-text%/%$year%_%$month%_%$day%_%$hour%.log"
+:syslogfacility-text, isequal, "local0" ?RemoteSyslogfacility-textApp
+```
 ### 小结
 以上我们完成了日志信息入库并在页面展示，其实这个页面很强大，可以过滤安全级别，过滤主机日志，查看统计信息等等….自己发掘吧。
 
